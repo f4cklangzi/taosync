@@ -147,17 +147,37 @@ class AlistClient:
         :param rootPath: 同步根目录
         """
         self.checkWait(path, scanInterval)
-        res = self.post('/api/fs/list', data={
-            'path': path,
-            'refresh': useCache != 1
-        })['content']
-        if res is not None:
+        
+        all_content = []
+        page = 1
+        per_page = 500  # 使用AList允许的最大每页数目
+
+        while True:
+            res_data = self.post('/api/fs/list', data={
+                'path': path,
+                'page': page,
+                'per_page': per_page,
+                'refresh': useCache != 1
+            })
+            
+            content = res_data.get('content')
+            if content:
+                all_content.extend(content)
+            
+            has_more = res_data.get('has_more')
+            if not has_more:
+                break
+            
+            page += 1
+
+        if all_content:
             rts = {
                 f"{item['name']}/" if item['is_dir'] else item['name']: {} if item['is_dir']
-                else item['size'] for item in res
+                else item['size'] for item in all_content
             }
         else:
             rts = {}
+            
         if spec and rts:
             if rootPath is None:
                 rootPath = path
@@ -170,40 +190,32 @@ class AlistClient:
         :param path:
         :return:
         """
-        res = self.post('/api/fs/list', data={
-            'path': path,
-            'refresh': True
-        })['content']
-        if res is not None:
-            return [{'path': item['name']} for item in res if item['is_dir']]
+        all_content = []
+        page = 1
+        per_page = 500  # 使用AList允许的最大每页数目
+
+        while True:
+            res_data = self.post('/api/fs/list', data={
+                'path': path,
+                'page': page,
+                'per_page': per_page,
+                'refresh': True
+            })
+            
+            content = res_data.get('content')
+            if content:
+                all_content.extend(content)
+            
+            has_more = res_data.get('has_more')
+            if not has_more:
+                break
+            
+            page += 1
+
+        if all_content:
+            return [{'path': item['name']} for item in all_content if item['is_dir']]
         else:
             return []
-
-    def allFileList(self, path, useCache=0, scanInterval=0, spec=None, rootPath=None):
-        """
-        递归获取文件列表，暂时弃用
-        :param path: 根路径
-        :param useCache: 是否使用缓存，0-不使用，1-使用
-        :param scanInterval: 目录扫描间隔，单位秒
-        :param spec: 排除项规则
-        :param rootPath: 同步根目录
-        :return: {
-            "test1-1/": {
-                "test1-3/": {
-                    "test1.txt": 4
-                },
-                "test1.txt": 4
-            },
-            "test1.txt": 4
-        }
-        """
-        if rootPath is None:
-            rootPath = path
-        fList = self.fileListApi(path, useCache, scanInterval, spec, rootPath)
-        for key in fList.keys():
-            if key.endswith('/'):
-                fList[key] = self.allFileList(f"{path}/{key[:-1]}", useCache, scanInterval, spec, rootPath)
-        return fList
 
     def mkdir(self, path, scanInterval=0):
         """

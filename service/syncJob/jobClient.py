@@ -445,6 +445,15 @@ class JobTask:
         try:
             srcFiles = self.listDir(srcPath, firstDst, spec, srcRootPath)
             dstFiles = self.listDir(dstPath, firstDst, spec, dstRootPath, False)
+
+            # 计算源和目标路径的文件和文件夹数量
+            src_file_count = sum(1 for k in srcFiles if not k.endswith('/'))
+            src_dir_count = sum(1 for k in srcFiles if k.endswith('/'))
+            dst_file_count = sum(1 for k in dstFiles if not k.endswith('/'))
+            dst_dir_count = sum(1 for k in dstFiles if k.endswith('/'))
+
+            logging.info(f"同步对比: 源路径 '{srcPath}' 包含文件 {src_file_count} 个, 目录 {src_dir_count} 个. "
+                         f"目标路径 '{dstPath}' 包含文件 {dst_file_count} 个, 目录 {dst_dir_count} 个.")
         except Exception:
             # 已在listDir做出日志打印等操作，此处啥都不用做
             return
