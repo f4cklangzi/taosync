@@ -34,7 +34,7 @@
 				submitLoading: false,
 				cuPath: null,
 				props: {
-					label: 'path',
+					label: 'label',
 					children: 'child',
 					isLeaf: 'leaf'
 				}
@@ -51,33 +51,65 @@
 				try {
 					let res = await alistGetPath(this.alistId, path);
 					this.pathLoading = false;
-					return res.data;
+					return res; // 返回整个响应对象，包含data和has_more_children
 				} catch (err) {
-					return [];
 					this.pathLoading = false;
+					console.error("Error getting path:", err);
+					return { data: { data: [], has_more_children: false }, msg: 'Error' }; // 返回默认结构，模拟后端完整响应
 				}
 			},
 			async loadNode(node, resolve) {
-				let path = '/';
-				let cup = node;
-				for (let i = 0; i < node.level; i++) {
-					path = '/' + cup.data.path + path;
-					cup = cup.parent;
+				let currentPath = '/';
+				if (node.level !== 0) {
+					currentPath = node.data.path;
 				}
-				return resolve(await this.getPath(path));
+				
+				console.log('DEBUG: loadNode called for path:', currentPath, 'Node:', node); // DEBUG
+				let response = await this.getPath(currentPath);
+				console.log('DEBUG: getPath raw response:', response); // DEBUG
+
+				let nodes = [];
+				// 确保正确访问 response.data.data
+				const backendData = response && response.data ? response.data.data : [];
+				const hasMoreChildren = response && response.data ? response.data.has_more_children : false;
+
+				console.log('DEBUG: Extracted backendData:', backendData); // DEBUG
+				console.log('DEBUG: Extracted hasMoreChildren:', hasMoreChildren); // DEBUG
+
+				if (backendData && backendData.length > 0) {
+					nodes = backendData.map(item => {
+						let fullPath = currentPath + (currentPath.endsWith('/') ? '' : '/') + item.path;
+						return {
+							path: fullPath,
+							label: item.path,
+							isLeaf: false, // 明确设置为非叶子节点，以便el-tree显示展开图标
+						};
+					});
+				}
+
+				// 如果后端指示还有更多子节点，添加一个提示
+				if (hasMoreChildren) {
+					nodes.push({
+						path: currentPath, // 路径保持当前路径，不影响选择
+						label: '（该目录下还有更多未显示项目，请手动输入或搜索）',
+						isLeaf: true, // 标记为叶子节点，不可展开
+						disabled: true // 禁用选择
+					});
+				}
+				console.log('DEBUG: Final nodes to resolve:', nodes); // DEBUG
+				resolve(nodes);
 			},
 			closeShow() {
 				this.dialogShow = false;
 				this.cuPath = null;
 			},
 			nodeClick(dt, node, se) {
-				let path = '/';
-				let cup = node;
-				for (let i = 0; i < node.level; i++) {
-					path = '/' + cup.data.path + path;
-					cup = cup.parent;
+				// 避免选择提示节点
+				if (node.disabled) {
+					this.cuPath = null;
+					return;
 				}
-				this.cuPath = path;
+				this.cuPath = node.data.path;
 			},
 			submit() {
 				this.$emit('submit', this.cuPath);

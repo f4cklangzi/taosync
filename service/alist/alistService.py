@@ -112,11 +112,12 @@ def removeClient(alistId):
 
 
 def getChildPath(alistId, path):
-    """
-    获取子目录列表
-    :param alistId:
-    :param path:
-    :return:
-    """
-    client = getClientById(alistId)
-    return client.filePathList(path)
+        """
+        获取子目录列表
+        :param alistId:
+        :param path:
+        :return: {'data': [{'path': "子目录名"}], 'has_more_children': True/False}
+        """
+        client = getClientById(alistId)
+        # 为前端显示，现在filePathList只获取AList API的第一页数据
+        return client.filePathList(path)

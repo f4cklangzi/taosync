@@ -5,6 +5,7 @@
 import time
 
 import requests
+import logging
 
 from common.LNG import G
 
@@ -186,37 +187,25 @@ class AlistClient:
 
     def filePathList(self, path):
         """
-        通过路径获取其下路径列表
+        通过路径获取其下路径列表 (为前端展示，只获取AList API的第一页)
         :param path:
-        :return:
+        :return: {'data': [{'path': "子目录名"}], 'has_more_children': True/False}
         """
-        all_content = []
-        page = 1
-        per_page = 500  # 使用AList允许的最大每页数目
-
-        while True:
-            res_data = self.post('/api/fs/list', data={
-                'path': path,
-                'page': page,
-                'per_page': per_page,
-                'refresh': True
-            })
-            
-            content = res_data.get('content')
-            if content:
-                all_content.extend(content)
-            
-            has_more = res_data.get('has_more')
-            if not has_more:
-                break
-            
-            page += 1
+        res_data = self.post('/api/fs/list', data={
+            'path': path,
+            'page': 1,
+            'per_page': 500,  # 始终请求AList API最大单页数量
+            'refresh': True
+        })
+        
+        all_content = res_data.get('content')
+        alist_has_more = res_data.get('has_more')
 
         if all_content:
-            return [{'path': item['name']} for item in all_content if item['is_dir']]
+            filtered_content = [{'path': item['name']} for item in all_content if item['is_dir']]
+            return {'data': filtered_content, 'has_more_children': alist_has_more}
         else:
-            return []
-
+            return {'data': [], 'has_more_children': False}
     def mkdir(self, path, scanInterval=0):
         """
         创建目录
